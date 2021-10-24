@@ -32,8 +32,10 @@ from evennia.settings_default import *
 ######################################################################
 
 # This is the name of your game. Make it catchy!
-SERVERNAME = "deleteme"
+SERVERNAME = "ALPACASgame"
 
+# Append alpacas portal service to plugin modules
+PORTAL_SERVICES_PLUGIN_MODULES.append('server.conf.alpacas_portal')
 
 ######################################################################
 # Settings given in secret_settings.py override those in this file.

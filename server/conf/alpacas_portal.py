@@ -13,16 +13,25 @@ which represents an "inputfunc" to be called on the Evennia side with *args, **k
 The most common inputfunc is "text", which takes just the text input
 from the command line and interprets it as an Evennia Command: `["text", ["look"], {}]`
 
+COPYRIGHT NOTICE:
+This code was copied from Evennia and modifed for use by the ALPACAS project.
+It was mainly modified to output text without HTML formatting and to remove
+portions related to csessionid, since Godot can't really use it (afaik).
 """
 import re
 import json
-import html
 from django.conf import settings
+from evennia.server.portal.portalsessionhandler import PORTAL_SESSIONS
+from evennia.server.session import Session
 from evennia.utils.utils import mod_import, class_from_module
 from evennia.utils.ansi import parse_ansi
 from evennia.utils.text2html import parse_html
-from autobahn.twisted.websocket import WebSocketServerProtocol
+from autobahn.twisted.websocket import WebSocketServerProtocol, WebSocketServerFactory
 from autobahn.exception import Disconnected
+from twisted.application import internet, service
+
+ALPACAS_ENABLED = True
+ALPACAS_PORT = 4020
 
 _RE_SCREENREADER_REGEX = re.compile(
     r"%s" % settings.SCREENREADER_REGEX_STRIP, re.DOTALL + re.MULTILINE
@@ -31,19 +40,17 @@ _CLIENT_SESSIONS = mod_import(settings.SESSION_ENGINE).SessionStore
 _UPSTREAM_IPS = settings.UPSTREAM_IPS
 
 # Status Code 1000: Normal Closure
-#   called when the connection was closed through JavaScript
+#   called when the connection was closed by client
 CLOSE_NORMAL = WebSocketServerProtocol.CLOSE_STATUS_CODE_NORMAL
 
 # Status Code 1001: Going Away
 #   called when the browser is navigating away from the page
 GOING_AWAY = WebSocketServerProtocol.CLOSE_STATUS_CODE_GOING_AWAY
 
-_BASE_SESSION_CLASS = class_from_module(settings.BASE_SESSION_CLASS)
 
-
-class WebSocketClient(WebSocketServerProtocol, _BASE_SESSION_CLASS):
+class AlpacasPortal(WebSocketServerProtocol, Session):
     """
-    Implements the server-side of the Websocket connection.
+    Implements the server-side of the Websocket connection for ALPACAS.
 
     """
 
@@ -53,32 +60,7 @@ class WebSocketClient(WebSocketServerProtocol, _BASE_SESSION_CLASS):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self.protocol_key = "webclient/websocket"
-
-    def get_client_session(self):
-        """
-        Get the Client browser session (used for auto-login based on browser session)
-
-        Returns:
-            csession (ClientSession): This is a django-specific internal representation
-                of the browser session.
-
-        """
-        try:
-            self.csessid = self.http_request_uri.split("?", 1)[1]
-        except IndexError:
-            # this may happen for custom webclients not caring for the
-            # browser session.
-            self.csessid = None
-            return None
-        except AttributeError:
-            from evennia.utils import logger
-
-            self.csessid = None
-            logger.log_trace(str(self))
-            return None
-        if self.csessid:
-            return _CLIENT_SESSIONS(session_key=self.csessid)
+        self.protocol_key = "ALPACAS"
 
     def onOpen(self):
         """
@@ -88,37 +70,18 @@ class WebSocketClient(WebSocketServerProtocol, _BASE_SESSION_CLASS):
         client_address = self.transport.client
         client_address = client_address[0] if client_address else None
 
-        if client_address in _UPSTREAM_IPS and "x-forwarded-for" in self.http_headers:
-            addresses = [x.strip() for x in self.http_headers["x-forwarded-for"].split(",")]
-            addresses.reverse()
+#        if client_address in _UPSTREAM_IPS and "x-forwarded-for" in self.http_headers:
+#            addresses = [x.strip() for x in self.http_headers["x-forwarded-for"].split(",")]
+#            addresses.reverse()
 
-            for addr in addresses:
-                if addr not in _UPSTREAM_IPS:
-                    client_address = addr
-                    break
+#            for addr in addresses:
+#                if addr not in _UPSTREAM_IPS:
+#                    client_address = addr
+#                    break
 
-        self.init_session("websocket", client_address, self.factory.sessionhandler)
+        self.init_session("ALPACAS", client_address, self.factory.sessionhandler)
 
-        csession = self.get_client_session()  # this sets self.csessid
-        csessid = self.csessid
-        uid = csession and csession.get("webclient_authenticated_uid", None)
-        nonce = csession and csession.get("webclient_authenticated_nonce", 0)
-        if uid:
-            # the client session is already logged in.
-            self.uid = uid
-            self.nonce = nonce
-            self.logged_in = True
-
-            for old_session in self.sessionhandler.sessions_from_csessid(csessid):
-                if (
-                    hasattr(old_session, "websocket_close_code")
-                    and old_session.websocket_close_code != CLOSE_NORMAL
-                ):
-                    # if we have old sessions with the same csession, they are remnants
-                    self.sessid = old_session.sessid
-                    self.sessionhandler.disconnect(old_session)
-
-        self.protocol_flags["CLIENTNAME"] = "Evennia Webclient (websocket)"
+        # self.protocol_flags["CLIENTNAME"] = "ALPACAS"
         self.protocol_flags["UTF-8"] = True
         self.protocol_flags["OOB"] = True
 
@@ -136,19 +99,6 @@ class WebSocketClient(WebSocketServerProtocol, _BASE_SESSION_CLASS):
             reason (str or None): Motivation for the disconnection.
 
         """
-        csession = self.get_client_session()
-
-        if csession:
-            # if the nonce is different, webclient_authenticated_uid has been
-            # set *before* this disconnect (disconnect called after a new client
-            # connects, which occurs in some 'fast' browsers like Google Chrome
-            # and Mobile Safari)
-            if csession.get("webclient_authenticated_nonce", 0) == self.nonce:
-                csession["webclient_authenticated_uid"] = None
-                csession["webclient_authenticated_nonce"] = 0
-                csession.save()
-            self.logged_in = False
-
         self.sessionhandler.disconnect(self)
         # autobahn-python:
         # 1000 for a normal close, 1001 if the browser window is closed,
@@ -205,10 +155,7 @@ class WebSocketClient(WebSocketServerProtocol, _BASE_SESSION_CLASS):
             self.disconnect(reason="Browser already closed.")
 
     def at_login(self):
-        csession = self.get_client_session()
-        if csession:
-            csession["webclient_authenticated_uid"] = self.uid
-            csession.save()
+        pass
 
     def data_in(self, **kwargs):
         """
@@ -264,8 +211,8 @@ class WebSocketClient(WebSocketServerProtocol, _BASE_SESSION_CLASS):
         flags = self.protocol_flags
 
         options = kwargs.pop("options", {})
-        raw = options.get("raw", flags.get("RAW", False))
-        client_raw = options.get("client_raw", False)
+#        raw = options.get("raw", flags.get("RAW", False))
+#        client_raw = options.get("client_raw", False)
         nocolor = options.get("nocolor", flags.get("NOCOLOR", False))
         screenreader = options.get("screenreader", flags.get("SCREENREADER", False))
         prompt = options.get("send_prompt", False)
@@ -275,13 +222,9 @@ class WebSocketClient(WebSocketServerProtocol, _BASE_SESSION_CLASS):
             text = parse_ansi(text, strip_ansi=True, xterm256=False, mxp=False)
             text = _RE_SCREENREADER_REGEX.sub("", text)
         cmd = "prompt" if prompt else "text"
-        if raw:
-            if client_raw:
-                args[0] = text
-            else:
-                args[0] = html.escape(text)  # escape html!
-        else:
-            args[0] = parse_html(text, strip_ansi=nocolor)
+
+        # ALPACAS -- Just send text.
+        args[0] = text
 
         # send to client on required form [cmdname, args, kwargs]
         self.sendLine(json.dumps([cmd, args, kwargs]))
@@ -306,3 +249,16 @@ class WebSocketClient(WebSocketServerProtocol, _BASE_SESSION_CLASS):
         """
         if not cmdname == "options":
             self.sendLine(json.dumps([cmdname, args, kwargs]))
+
+
+# ALPACAS -- Add loading function
+def start_plugin_services(portal):
+    factory = WebSocketServerFactory()
+    factory.noisy = False
+    factory.protocol = AlpacasPortal
+    factory.sessionhandler = PORTAL_SESSIONS
+    alpacas_service = internet.TCPServer(ALPACAS_PORT, factory)
+    alpacas_service.setName("ALPACAS")
+    portal.services.addService(alpacas_service)
+
+# End of file

@@ -25,6 +25,7 @@ from evennia.server.portal.portalsessionhandler import PORTAL_SESSIONS
 from evennia.server.session import Session
 from evennia.utils.utils import mod_import, class_from_module
 from evennia.utils.ansi import parse_ansi
+from evennia.utils.ansi import strip_raw_ansi
 from evennia.utils.text2html import parse_html
 from autobahn.twisted.websocket import WebSocketServerProtocol, WebSocketServerFactory
 from autobahn.exception import Disconnected
@@ -221,6 +222,9 @@ class AlpacasPortal(WebSocketServerProtocol, Session):
             # screenreader mode cleans up output
             text = parse_ansi(text, strip_ansi=True, xterm256=False, mxp=False)
             text = _RE_SCREENREADER_REGEX.sub("", text)
+        else:
+            # Strip ANSI codes from text.
+            text = strip_raw_ansi(text,)
         cmd = "prompt" if prompt else "text"
 
         # ALPACAS -- Just send text.

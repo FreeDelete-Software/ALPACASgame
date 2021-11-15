@@ -71,14 +71,14 @@ class AlpacasPortal(WebSocketServerProtocol, Session):
         client_address = self.transport.client
         client_address = client_address[0] if client_address else None
 
-#        if client_address in _UPSTREAM_IPS and "x-forwarded-for" in self.http_headers:
-#            addresses = [x.strip() for x in self.http_headers["x-forwarded-for"].split(",")]
-#            addresses.reverse()
+        if client_address in _UPSTREAM_IPS and "x-forwarded-for" in self.http_headers:
+            addresses = [x.strip() for x in self.http_headers["x-forwarded-for"].split(",")]
+            addresses.reverse()
 
-#            for addr in addresses:
-#                if addr not in _UPSTREAM_IPS:
-#                    client_address = addr
-#                    break
+            for addr in addresses:
+                if addr not in _UPSTREAM_IPS:
+                    client_address = addr
+                    break
 
         self.init_session("ALPACAS", client_address, self.factory.sessionhandler)
 

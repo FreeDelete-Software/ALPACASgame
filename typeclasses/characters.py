@@ -9,8 +9,20 @@ creation commands.
 """
 from evennia import DefaultCharacter
 
+class AlpacasCharacter(DefaultCharacter):
+    def at_after_move(self, source_location, **kwargs):
+        """
+        Send render info after moving. 
+        """
 
-class Character(DefaultCharacter):
+        # From Evennia
+        if self.location.access(self, "view"):
+            self.msg(self.at_look(self.location))
+
+        # OOB Message for ALPACASclient
+        self.msg(render=(("new_room",), {"room_name":self.location.key, "room_art":self.location.db.art_file}))
+
+class Character(AlpacasCharacter):
     """
     The Character defaults to reimplementing some of base Object's hook methods with the
     following functionality:

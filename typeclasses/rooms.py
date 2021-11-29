@@ -15,9 +15,9 @@ class AlpacasRoom(DefaultRoom):
         ALPACAS
         =======
         Copied from Evennia's default object. It should behave just 
-        like the default one does, except it will also provide additional
-        messages and hooks meant for providing ALPACASclient with all
-        the details it needs to render the game. 
+        like the default return_appearance does, except it will also 
+        provide additional messages and hooks meant for providing 
+        ALPACASclient with all the details it needs to render the game. 
 
         Evennia
         =======
@@ -36,7 +36,7 @@ class AlpacasRoom(DefaultRoom):
 
         # Blank dictionary for ALPACASclient message
         render_list = []
-        
+
         for con in visible:
             key = con.get_display_name(looker)
             if con.destination:

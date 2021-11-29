@@ -218,13 +218,16 @@ class AlpacasPortal(WebSocketServerProtocol, Session):
         screenreader = options.get("screenreader", flags.get("SCREENREADER", False))
         prompt = options.get("send_prompt", False)
 
+        # ALPACAS doesn't do colors or links yet.
+        text = parse_ansi(text, strip_ansi=True, xterm256=False, mxp=False)
+        # This following line is necessary for color processing
+        # until Evennia changes some of its ansi utils:
+        # text = strip_raw_ansi(text,)
+
         if screenreader:
             # screenreader mode cleans up output
-            text = parse_ansi(text, strip_ansi=True, xterm256=False, mxp=False)
             text = _RE_SCREENREADER_REGEX.sub("", text)
-        else:
-            # Strip ANSI codes from text.
-            text = strip_raw_ansi(text,)
+
         cmd = "prompt" if prompt else "text"
 
         # ALPACAS -- Just send text.

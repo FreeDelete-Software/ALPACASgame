@@ -37,8 +37,13 @@ class AlpacasCharacter(DefaultCharacter):
                 return "Could not view '%s'." % target.key
 
         appearance = target.return_appearance(self, **kwargs)
-        description = appearance.get("description")
-        render_list = appearance.get("render_list")
+
+        if isinstance(appearance, str):
+            description = appearance
+            render_list = None
+        else:
+            description = appearance.get("description")
+            render_list = appearance.get("render_list")
 
         if target == self.location:
             self.msg(render=(("new_room",), {"room_name":self.location.key, "room_art":self.location.db.art_file}))

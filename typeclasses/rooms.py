@@ -50,10 +50,11 @@ class AlpacasRoom(DefaultRoom):
                 # things can be pluralized
                 things[key].append(con)
             con_entry = {
-                "name" : key,
-                "id" : con.id,
+                "display_name" : key,
+                "key_name" : con.key,
+                "obj_id" : con.id,
                 "obj_type" : con_type,
-                "sprite" : con.db.sprite_file
+                "sprite_file" : con.db.sprite_file
             }
             render_list.append(con_entry)
             

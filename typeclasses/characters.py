@@ -8,8 +8,9 @@ creation commands.
 
 """
 from evennia import DefaultCharacter
+from typeclasses.objects import AlpacasObject
 
-class AlpacasCharacter(DefaultCharacter):
+class AlpacasCharacter(AlpacasObject, DefaultCharacter):
     """
     Basetype character for ALPACASclient players.
     """

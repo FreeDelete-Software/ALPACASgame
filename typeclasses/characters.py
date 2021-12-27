@@ -14,7 +14,13 @@ class AlpacasCharacter(AlpacasObject, DefaultCharacter):
     """
     Currently just a placeholder.
     """
-    pass
+    def get_category(self):
+        """
+        This should return a category name. Currently, this is not dynamically assigned.
+        """
+        # user objects are displayed in the "Characters" container inside ALPACASclient
+        return "user"
+
 
 
 class Character(AlpacasCharacter):

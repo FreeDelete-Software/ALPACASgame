@@ -25,9 +25,23 @@ class AlpacasObject(DefaultObject):
      - return_appearance()
      - move_to()
      - at_look()
+
+    This also adds the following additional methods:
+     - get_category()
     """
+
+    #
+    # Modified Evennia Classes
+    #
+    
     def at_look(self, target, **kwargs):
         """
+        ALPACAS
+        =======
+        Modified to handle a dictionary input from modified return_appearance method.
+
+        Evennia
+        =======
         Called when this object performs a look. It allows to
         customize just what this means. It will not itself
         send any data.
@@ -155,7 +169,7 @@ class AlpacasObject(DefaultObject):
         """
         ALPACAS
         =======
-        This is modified to send messages to ALPACASclient when an object moves.
+        Modified to send messages to ALPACASclient when an object moves.
 
         Evennia
         =======
@@ -267,7 +281,7 @@ class AlpacasObject(DefaultObject):
             "display_name" : self.name,
             "key_name" : self.key,
             "obj_id" : self.id,
-            "obj_type" : "thing",
+            "obj_type" : self.get_category(),
             "sprite_file" : self.db.sprite_file
         }
         for con in self.location.contents:
@@ -300,6 +314,17 @@ class AlpacasObject(DefaultObject):
                 logerr(errtxt.format(err="at_after_move"), err)
                 return False
         return True
+
+    #
+    # Methods added for ALPACASclient
+    #
+
+    def get_category(self):
+        """
+        This should return a category name. Currently, this is not dynamically assigned.
+        """
+        # Things are displayed in the "Objects" container inside ALPACASclient
+        return "thing"
 
 
 class Object(AlpacasObject):

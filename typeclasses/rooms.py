@@ -8,12 +8,18 @@ Rooms are simple containers that has no location of their own.
 from evennia import DefaultRoom
 from typeclasses.objects import AlpacasObject 
 
-class AlpacasRoom(AlpacasObject):
+class AlpacasRoom(DefaultRoom, AlpacasObject):
     """
     This currently does nothing besides establish inheritance structure for 
     ALPACASclient basetypes.
     """
-    pass
+    def get_category(self):
+        """
+        This should return a category name. Currently, this is not dynamically assigned.
+        """
+        # Is this necessary? Added anyway.
+        return "room"
+
 
 class Room(AlpacasRoom):
     """
